@@ -95,6 +95,7 @@ def parse_history(filepath: Path) -> LocationHistory:
 
 
 if __name__ == '__main__':
+    # TODO: a `prepare_data` cli script that takes the path to the takeout data, reads all of it, and creates two CSV files
     path = Path('Semantic Location History') / '2022' / '2022_SEPTEMBER.json'
     history = parse_history(path)
     activities = pd.DataFrame(data=history.activity_segments)
