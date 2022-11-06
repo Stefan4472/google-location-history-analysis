@@ -8,6 +8,8 @@ beautifulsoup4==4.11.1
 bleach==5.0.1
 cffi==1.15.1
 colorama==0.4.6
+contourpy==1.0.6
+cycler==0.11.0
 dataclasses==0.6
 debugpy==1.6.3
 decorator==5.1.1
@@ -15,6 +17,7 @@ defusedxml==0.7.1
 entrypoints==0.4
 executing==1.2.0
 fastjsonschema==2.16.2
+fonttools==4.38.0
 idna==3.4
 importlib-metadata==5.0.0
 ipykernel==6.17.0
@@ -27,7 +30,9 @@ jupyter-server==1.21.0
 jupyter_client==7.4.4
 jupyter_core==4.11.2
 jupyterlab-pygments==0.2.2
+kiwisolver==1.4.4
 MarkupSafe==2.1.1
+matplotlib==3.6.2
 matplotlib-inline==0.1.6
 mistune==2.0.4
 nbclassic==0.4.8
@@ -43,6 +48,7 @@ pandas==1.5.1
 pandocfilters==1.5.0
 parso==0.8.3
 pickleshare==0.7.5
+Pillow==9.3.0
 prometheus-client==0.15.0
 prompt-toolkit==3.0.32
 psutil==5.9.3
