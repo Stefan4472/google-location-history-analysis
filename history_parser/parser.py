@@ -1,6 +1,5 @@
 import json
 import logging
-import pandas as pd
 import dataclasses as dc
 from pathlib import Path
 from typing import List, Dict
@@ -35,40 +34,58 @@ class PlaceVisit:
 
 
 def parse_activity_segment(data: Dict) -> ActivitySegment:
+    # Note: I use .get() here because some values may be missing,
+    # and we just store them as None
     if 'waypointPath' in data:
-        distance = data['waypointPath']['distanceMeters']
+        distance = data['waypointPath'].get('distanceMeters')
     elif 'transitPath' in data:
-        distance = data['transitPath']['distanceMeters']
+        distance = data['transitPath'].get('distanceMeters')
     elif 'simplifiedRawPath' in data:
-        distance = data['simplifiedRawPath']['distanceMeters']
+        distance = data['simplifiedRawPath'].get('distanceMeters')
     else:
-        raise NotImplementedError(f'Unrecognized path type in {json.dumps(data)}')
+        distance = None
 
     return ActivitySegment(
-        data['startLocation']['latitudeE7'],
-        data['startLocation']['longitudeE7'],
-        data['endLocation']['latitudeE7'],
-        data['endLocation']['longitudeE7'],
-        data['duration']['startTimestamp'],
-        data['duration']['endTimestamp'],
-        data['distance'],
-        data['activityType'],
-        data['confidence'],
+        data.get('startLocation', {}).get('latitudeE7'),
+        data.get('startLocation', {}).get('longitudeE7'),
+        data.get('endLocation', {}).get('latitudeE7'),
+        data.get('endLocation', {}).get('longitudeE7'),
+        data.get('duration', {}).get('startTimestamp'),
+        data.get('duration', {}).get('endTimestamp'),
+        data.get('distance'),
+        data.get('activityType'),
+        data.get('confidence'),
         distance,
     )
 
 
 def parse_place_visit(data: Dict) -> PlaceVisit:
     return PlaceVisit(
-        data['location']['latitudeE7'],
-        data['location']['longitudeE7'],
-        data['location']['address'].replace(',', ''),
-        data['location']['name'].replace(',', '') if 'name' in data['location'] else 'UNKNOWN',
-        data['location']['placeId'],
-        data['duration']['startTimestamp'],
-        data['duration']['endTimestamp'],
-        data['placeConfidence'],
+        data.get('location', {}).get('latitudeE7'),
+        data.get('location', {}).get('longitudeE7'),
+        data.get('location', {}).get('address'),
+        data.get('location', {}).get('name'),
+        data.get('location', {}).get('placeId'),
+        data.get('duration', {}).get('startTimestamp'),
+        data.get('duration', {}).get('endTimestamp'),
+        data.get('placeConfidence'),
     )
+
+
+def parse_history(
+        filepath: Path,
+        activity_segments: List[ActivitySegment],
+        place_visits: List[PlaceVisit],
+):
+    with open(filepath, encoding='utf-8') as f:
+        data = json.load(f)
+    for record in data['timelineObjects']:
+        if 'activitySegment' in record:
+            activity_segments.append(parse_activity_segment(record['activitySegment']))
+        elif 'placeVisit' in record:
+            place_visits.append(parse_place_visit(record['placeVisit']))
+        else:
+            raise NotImplementedError()
 
 
 @dc.dataclass
@@ -77,28 +94,7 @@ class LocationHistory:
     place_visits: List[PlaceVisit] = dc.field(default_factory=list)
 
 
-def parse_history(filepath: Path) -> LocationHistory:
-    with open(filepath, encoding='utf-8') as f:
-        data = json.load(f)
+def parse_history_util(filepath: Path) -> LocationHistory:
     history = LocationHistory()
-    for record in data['timelineObjects']:
-        if 'activitySegment' in record:
-            try:
-                history.activity_segments.append(parse_activity_segment(record['activitySegment']))
-            except NotImplementedError as e:
-                logging.warning(f'Ignoring ActivitySegment with startTime={record["activitySegment"]["duration"]["startTimestamp"]}')
-        elif 'placeVisit' in record:
-            history.place_visits.append(parse_place_visit(record['placeVisit']))
-        else:
-            raise NotImplementedError()
+    parse_history(filepath, history.activity_segments, history.place_visits)
     return history
-
-
-if __name__ == '__main__':
-    # TODO: a `prepare_data` cli script that takes the path to the takeout data, reads all of it, and creates two CSV files
-    path = Path('Semantic Location History') / '2022' / '2022_SEPTEMBER.json'
-    history = parse_history(path)
-    activities = pd.DataFrame(data=history.activity_segments)
-    places = pd.DataFrame(data=history.place_visits)
-    activities.to_csv('activities.csv', header=True, index=False, encoding='utf-8')
-    places.to_csv('places.csv', header=True, index=False, encoding='utf-8')
