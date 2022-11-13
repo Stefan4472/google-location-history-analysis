@@ -1,8 +1,9 @@
 """Utility methods for parsing Google Takeout data."""
+import zipfile
 import json
 import dataclasses as dc
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Iterator, Union, TextIO
 
 
 @dc.dataclass
@@ -33,6 +34,84 @@ class PlaceVisit:
     start_timestamp: str
     end_timestamp: str
     confidence: str
+
+
+@dc.dataclass
+class TakeoutData:
+    """Stores data extracted from a takeout."""
+    activities: List[ActivitySegment] = dc.field(default_factory=list)
+    places: List[PlaceVisit] = dc.field(default_factory=list)
+    num_files = 0
+
+
+def read_takeout(filepath: Path) -> TakeoutData:
+    """
+    Reads the takeout data at `filepath`, which may be zipped or unzipped.
+
+    If the takeout data is zipped, this function will read the internal
+    files without extracting them. If the takeout data has been extracted
+    into a directory, then this function will simply read the files off
+    the file system.
+
+    Raises ValueError if the given takeout does not have the expected structure.
+    """
+    # Note: it just so happens that `Path` and `zipfile.Path` share the
+    # same interface for the things that we want to do. Therefore, we
+    # can use them interchangeably.
+    if filepath.suffix == '.zip':
+        if not zipfile.is_zipfile(filepath):
+            raise ValueError(f'Invalid zipfile ({filepath})')
+        data_paths = find_data_paths(zipfile.Path(zipfile.ZipFile(filepath)))
+    elif filepath.is_dir():
+        data_paths = find_data_paths(filepath)
+    else:
+        raise ValueError('Invalid file: neither a zip or a directory')
+
+    takeout = TakeoutData()
+    for file_path in data_paths:
+        with file_path.open(mode='r', encoding='utf-8') as f:
+            parse_history(f, takeout.activities, takeout.places)
+        takeout.num_files += 1
+    return takeout
+
+
+def find_data_paths(
+        takeout_root: Union[Path, zipfile.Path],
+) -> Iterator[Union[Path, zipfile.Path]]:
+    """
+    Given the root path to the takeout data, return all found data files.
+
+    This works for both regular paths and zipfile paths because the
+    interfaces are the same for the things that we want to do.
+    """
+    history_path = takeout_root / 'Takeout' / 'Location History' / 'Semantic Location History'
+    if not history_path.is_dir():
+        raise ValueError('Couldn\'t find Semantic Location History')
+    for year_path in history_path.iterdir():
+        for json_path in year_path.iterdir():
+            yield json_path
+
+
+def parse_history(
+        file: TextIO,
+        activity_segments: List[ActivitySegment],
+        place_visits: List[PlaceVisit],
+):
+    """
+    Parse a Semantic Location History JSON file that is passed
+    as an open file descriptor in text ('r') mode.
+
+    Reads the file, parses the data, and writes to the provided
+    lists in-place.
+    """
+    data = json.load(file)
+    for record in data['timelineObjects']:
+        if 'activitySegment' in record:
+            activity_segments.append(parse_activity_segment(record))
+        elif 'placeVisit' in record:
+            place_visits.append(parse_place_visit(record))
+        else:
+            raise NotImplementedError()
 
 
 def parse_activity_segment(data: Dict) -> ActivitySegment:
@@ -78,23 +157,3 @@ def parse_place_visit(data: Dict) -> PlaceVisit:
         data.get('duration', {}).get('endTimestamp'),
         data.get('placeConfidence'),
     )
-
-
-def parse_history(
-        filepath: Path,
-        activity_segments: List[ActivitySegment],
-        place_visits: List[PlaceVisit],
-):
-    """
-    Parse an individual Semantic Location History JSON file and
-    write the parsed objects to the provided lists in-place.
-    """
-    with open(filepath, encoding='utf-8') as f:
-        data = json.load(f)
-    for record in data['timelineObjects']:
-        if 'activitySegment' in record:
-            activity_segments.append(parse_activity_segment(record))
-        elif 'placeVisit' in record:
-            place_visits.append(parse_place_visit(record))
-        else:
-            raise NotImplementedError()
