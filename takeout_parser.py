@@ -22,6 +22,7 @@ from typing import List, Dict, Iterator
 @dc.dataclass
 class ActivitySegment:
     """Stores data parsed from a single ActivitySegment."""
+
     start_lat_e7: int
     start_lon_e7: int
     end_lat_e7: int
@@ -38,6 +39,7 @@ class ActivitySegment:
 @dc.dataclass
 class PlaceVisit:
     """Stores data parsed from a single PlaceVisit."""
+
     lat_e7: int
     lon_e7: int
     # Note: address will usually contain commas. Keep in mind when writing to CSV.
@@ -52,6 +54,7 @@ class PlaceVisit:
 @dc.dataclass
 class TakeoutData:
     """Stores data extracted from a takeout."""
+
     activities: List[ActivitySegment] = dc.field(default_factory=list)
     places: List[PlaceVisit] = dc.field(default_factory=list)
     num_files = 0

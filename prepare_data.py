@@ -11,7 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""CLI program that reads a Google LocationHistory Takeout file and writes the data to CSV."""
+"""
+A program that reads a Google Location History takeout file and writes the data to CSV.
+Run `python prepare_data.py help` for more information.
+"""
 import click
 import pandas as pd
 from pathlib import Path
@@ -33,12 +36,12 @@ def prepare_data(
     places_path: Optional[Path] = None,
 ):
     """
-    Reads Google Takeout data and writes it out two CSV files, one containing
-    ActivitySegment data and the other containing PlaceVisit data.
+    Reads Google Location History Takeout data and writes it out to two CSV files,
+    one containing ActivitySegment data and the other containing PlaceVisit data.
 
-    TAKEOUT_PATH: path to the (zipped) Google Takeout folder.
-    ACTIVITIES_PATH: path where the ActivitySegments CSV will be written (defaults to 'activities.csv').
-    PLACES_PATH: path where the PlaceVisits CSV will be written (defaults to 'places.csv').
+    TAKEOUT_PATH: path to the zipped Google Takeout folder.
+    ACTIVITIES_PATH: path to where the ActivitySegments CSV will be written (defaults to 'activities.csv').
+    PLACES_PATH: path to where the PlaceVisits CSV will be written (defaults to 'places.csv').
     """
     takeout = read_takeout(takeout_path)
     click.echo(f"Found {takeout.num_files} data files")
